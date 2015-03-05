@@ -156,7 +156,9 @@ def image(path):
     return flask.send_from_directory('img', path)
 
 def main(argv):
-    app.run(debug=DEBUG, port=8090)
+    # TODO: don't serve directly
+    app.run(host='0.0.0.0', port=7000, debug=False)
+    #app.run(debug=DEBUG)
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
