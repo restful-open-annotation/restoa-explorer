@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div>
+<ul>
+{% for doc in documents %}
+<li><a href="{{ doc.href }}">{{ doc.title }}</a>: {{ doc.count }} annotations</li>
+{% else %}
+<b>No documents found!</b>
+{% endfor %}
+</ul>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div>
+{% for ann in annotations %}
+<b>{{ ann['@id'] }}</b>
+<ul>
+{% for key, val in ann.items() %}
+{% if key != '@id' %}
+<li>{{ key }}: 
+{% if val.startswith('http://') %}
+  <a href="{{ val }}">{{ val }}</a>
+{% else %}
+  {{ val }}
+{% endif %}
+</li>
+{% endif %}
+{% endfor %}
+</ul>
+{% else %}
+<b>No annotations found!</b>
+{% endfor %}
+</div>
+{% endblock %}
