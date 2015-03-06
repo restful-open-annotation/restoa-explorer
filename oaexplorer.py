@@ -24,7 +24,11 @@ from webargs.flaskparser import use_args
 
 from so2html import standoff_to_html
 
-DEBUG = True
+try:
+    from development import DEBUG
+    print >> sys.stderr, '########## Devel, DEBUG %s ##########' % DEBUG
+except ImportError:
+    DEBUG = False
 
 API_ROOT = '/explore'
 
@@ -178,8 +182,10 @@ def select_url():
 
 def main(argv):
     # TODO: don't serve directly
-    app.run(host='0.0.0.0', port=7000, debug=False)
-    #app.run(debug=DEBUG, port=7000)
+    if not DEBUG:
+        app.run(host='0.0.0.0', port=7000, debug=False)
+    else:
+        app.run(debug=DEBUG, port=7000)
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
