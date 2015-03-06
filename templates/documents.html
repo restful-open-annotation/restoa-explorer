@@ -1,13 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<div>
 <h2>Annotations by document</h2>
-<ul>
 {% for doc in documents %}
-<li><a href="{{ doc.href }}">{{ doc.title }}</a>: {{ doc.count }} annotations</li>
+<div style="margin: 20px">
+<h4>{{ doc.title }}</h4>
+<p>Number of annotations: {{ doc.count }}</p>
+<ul>
+  <li><a href="{{ doc.href }}&style=visualize">Visualize</a></li>
+  <li><a href="{{ doc.href }}&style=list">List</a></li>
+  <li><a href="{{ doc.title }}">Raw text</a>
+</ul>
+</div>
 {% else %}
 <b>No documents found!</b>
 {% endfor %}
-</ul>
-</div>
 {% endblock %}
