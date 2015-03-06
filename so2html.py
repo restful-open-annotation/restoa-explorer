@@ -11,6 +11,7 @@ import re
 import unicodedata
 
 from collections import namedtuple
+from collections import defaultdict
 from itertools import chain
 
 # the tag to use to mark annotated spans
@@ -118,6 +119,33 @@ class Marker(object):
         if not is_end:
             self.span.start_marker = self
 
+        # attributes in generated HTML
+        self._attributes = defaultdict(list)
+
+    def add_attribute(self, name, value):
+        self._attributes[name].append(value)
+
+    def get_attributes(self):
+        return sorted([(k, ' '.join(v)) for k, v in self._attributes.items()])
+
+    def attribute_string(self):
+        return ' '.join('%s="%s"' % (k, v) for k, v in self.get_attributes())
+
+    def fill_style_attributes(self):
+        self.add_attribute('class', 'ann')
+        self.add_attribute('class', 'ann-h%d' % self.span.height())
+        self.add_attribute('class', 'ann-t%s' % self.span.type)
+        # TODO: this will produce redundant class combinations in
+        # cases (e.g. "continueleft openleft")
+        if self.cont_left:
+            self.add_attribute('class', 'ann-contleft')
+        if self.cont_right:
+            self.add_attribute('class', 'ann-conright')
+        if self.covered_left:
+            self.add_attribute('class', 'ann-openleft')
+        if self.covered_right:
+            self.add_attribute('class', 'ann-openright')
+
     def __unicode__(self):
         if self.is_end:
             return u'</%s>' % self.span.tag()
@@ -125,14 +153,9 @@ class Marker(object):
             # Formatting tags take no style
             return u'<%s>' % self.span.tag()
         else:
-            # TODO: this will produce redundant class combinations in
-            # cases (e.g. "continueleft openleft")
-            return u'<%s class="ann ann-h%d ann-t%s%s%s%s%s">' % \
-                (self.span.tag(), self.span.height(), self.span.type,
-                 u' ann-contleft' if self.cont_left else '',
-                 u' ann-contright' if self.cont_right else '',
-                 u' ann-openleft' if self.covered_left else '',
-                 u' ann-openright' if self.covered_right else '')
+            self.fill_style_attributes()
+            attributes = self.attribute_string()
+            return u'<%s %s>' % (self.span.tag(), attributes)
 
 def marker_sort(a, b):
     return cmp(a.offset, b.offset) or cmp(a.sort_idx, b.sort_idx)
@@ -179,7 +202,7 @@ def resolve_heights(spans):
 
 LEGEND_CSS=""".legend {
   float:right;
-  margin-left: 10px;
+  margin: 20px;
   border: 1px solid gray;
   font-size: 90%;
   background-color: #eee;
@@ -272,7 +295,7 @@ def generate_legend(types, colors):
     parts.append('</table></div>')
     return ''.join(parts)
 
-def _standoff_to_html(text, standoffs, legend):
+def _standoff_to_html(text, standoffs, legend, tooltips):
     """standoff_to_html() implementation, don't invoke directly."""
 
     # Convert standoffs to spans and generate mapping from types to
@@ -370,36 +393,14 @@ def _standoff_to_html(text, standoffs, legend):
     if legend_html:
         out = [legend_html] + out
 
-    return css, u''.join(unicode(o) for o in out)    
+    # add in attributes to trigger tooltip display
+    if tooltips:
+        for m in (o for o in out if isinstance(o, Marker) and not o.is_end):
+            m.add_attribute('class', 'hint--top')
+            # TODO: useful, not renundant info
+            m.add_attribute('data-hint', m.span.type)
 
-header_pre_css = """<!DOCTYPE html>
-<html>
-<head>
-<style type="text/css">
-"""
-
-style_css = """html {
-  background-color: #eee; 
-  font-family: sans;
-}
-body { 
-  background-color: #fff; 
-  border: 1px solid #ddd;
-  padding: 15px; margin: 15px;
-  line-height: %dpx
-}
-section {
-  padding: 15px;
-}
-""" % BASE_LINE_HEIGHT
-
-header_post_css = """
-</style>
-</head>
-<body class="clearfix">"""
-
-trailer = """</body>
-</html>"""
+    return css, u''.join(unicode(o) for o in out)
 
 def darker_color(c, amount=0.3):
     """Given HTML-style #RRGGBB color string, return variant that is
@@ -546,13 +547,51 @@ def json_to_standoffs(j):
 
     return standoffs
 
-def standoff_to_html(text, standoffs, legend=True):
+def _header_html(css, links):
+    return """<!DOCTYPE html>
+<html>
+<head>
+%s
+<style type="text/css">
+html {
+  background-color: #eee;
+  font-family: sans;
+}
+body {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  padding: 15px; margin: 15px;
+  line-height: %dpx
+}
+section {
+  padding: 15px;
+}
+%s
+/* This is a hack to correct for hint.css making blocks too high. */
+.hint, [data-hint] { display: inline; }
+</style>
+</head>
+<body class="clearfix">""" % (links, BASE_LINE_HEIGHT, css)
+
+def _trailer_html():
+    return """</body>
+</html>"""
+
+def standoff_to_html(text, standoffs, legend=True, tooltips=False):
     """Create HTML representation of given text and standoff
     annotations.
     """
+    css, body = _standoff_to_html(text, standoffs, legend, tooltips)
 
-    css, body = _standoff_to_html(text, standoffs, legend)
-    return header_pre_css + style_css + css + header_post_css + body + trailer
+    # Note: tooltips are not generated by default because their use
+    # depends on the external CSS library hint.css and this script
+    # aims to be standalone in its basic application.
+    if not tooltips:
+        links = ''
+    else:
+        links = '<link rel="stylesheet" href="static/css/hint.css">\n'
+
+    return (_header_html(css, links) + body +  _trailer_html())
 
 def main(argv=None):
     if argv is None:

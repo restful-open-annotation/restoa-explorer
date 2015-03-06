@@ -190,7 +190,8 @@ def visualize_doc(url, doc, text_encoding=None, style=None):
         return flask.render_template('annotations.html', annotations=filtered)
     else:
         standoffs = annotations_to_standoffs(filtered)
-        return standoff_to_html(doc_text, standoffs)
+        return standoff_to_html(doc_text, standoffs,
+                                legend=True, tooltips=True)
 
 def doc_href(url, doc):
     return '%s?url=%s&doc=%s' % (API_ROOT, url, doc)
