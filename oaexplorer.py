@@ -150,7 +150,7 @@ def visualize_doc(url, doc, text_encoding=None, style=None):
     else:
         standoffs = annotations_to_standoffs(filtered)
         return standoff_to_html(doc_text, standoffs,
-                                legend=True, tooltips=True)
+                                legend=True, tooltips=True, links=True)
 
 def doc_href(url, doc):
     return '%s?url=%s&doc=%s' % (API_ROOT, url, doc)
