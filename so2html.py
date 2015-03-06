@@ -24,15 +24,6 @@ VSPACE = 2
 # text line height w/o annotations
 BASE_LINE_HEIGHT = 24
 
-# span type to HTML tag mapping for formatting spans.
-FORMATTING_TYPE_TAG_MAP = {
-    'bold': 'b',
-    'italic': 'i',
-    'sup': 'sup',
-    'sub': 'sub',
-    'section': 'section'
-}
-
 # "effectively zero" height for formatting tags
 EPSILON = 0.0001
 
@@ -55,7 +46,7 @@ class Span(object):
         if formatting is not None:
             self.formatting = formatting
         else:
-            self.formatting = type_ in FORMATTING_TYPE_TAG_MAP
+            self.formatting = is_formatting_type(self.type)
 
         self.nested = set()
         self._height = None
@@ -72,12 +63,15 @@ class Span(object):
         else:
             # TODO: very special case hack put in place to guess at
             # which CRAFT sections are headings. Remove ASAP.
-            if self.type == 'section' and self.end - self.start < 100:
-                if self.start < 10:
-                    return 'h2'
-                else:
-                    return 'h3'
-            return FORMATTING_TYPE_TAG_MAP.get(self.type, self.type)
+            if (type_to_formatting_tag(self.type) == 'section' and
+                self.end - self.start < 100):
+                return 'h2'
+            return type_to_formatting_tag(self.type)
+
+    def markup_type(self):
+        """Return a coarse variant of the type that can be used as a label in
+        HTML markup (tag, CSS class name, etc)."""
+        return html_safe_string(coarse_type(self.type))
 
     def sort_height(self):
         """Relative height of this tag for sorting purposes."""
@@ -97,6 +91,34 @@ class Span(object):
         """Relative height of this tag (except for sorting)."""
         # Simply eliminate the "virtual" EPSILON heights.
         return int(self.sort_height())
+
+# Span type to HTML tag mapping for formatting spans. Note that these
+# are URIs we came up with and not likely to be adopted by many tools
+# (see e.g. https://github.com/spyysalo/knowtator2oa/issues/1).
+FORMATTING_TYPE_TAG_MAP = {
+    'http://www.w3.org/TR/html/#b': 'b',
+    'http://www.w3.org/TR/html/#i': 'i',
+    'http://www.w3.org/TR/html/#u': 'u',
+    'http://www.w3.org/TR/html/#sup': 'sup',
+    'http://www.w3.org/TR/html/#sub': 'sub',
+    'http://purl.obolibrary.org/obo/IAO_0000314': 'section',
+    # forms used in initial CRAFT RDFization
+    'http://craft.ucdenver.edu/iao/bold': 'b',
+    'http://craft.ucdenver.edu/iao/italic': 'i',
+    'http://craft.ucdenver.edu/iao/underline': 'u',
+    'http://craft.ucdenver.edu/iao/sub': 'sub',
+    'http://craft.ucdenver.edu/iao/sup': 'sup',
+}
+
+def is_formatting_type(type_):
+    """Return True if the given type can be assumed to identify a
+    formatting tag such as bold or italic, False otherwise."""
+    return type_ in FORMATTING_TYPE_TAG_MAP
+
+def type_to_formatting_tag(type_):
+    """Return the HTML tag corresponding to the given formatting type."""
+    tag = FORMATTING_TYPE_TAG_MAP.get(type_, type_)
+    return html_safe_string(tag) # just in case
 
 class Marker(object):
     def __init__(self, span, offset, is_end, cont_left=False, 
@@ -134,7 +156,7 @@ class Marker(object):
     def fill_style_attributes(self):
         self.add_attribute('class', 'ann')
         self.add_attribute('class', 'ann-h%d' % self.span.height())
-        self.add_attribute('class', 'ann-t%s' % self.span.type)
+        self.add_attribute('class', 'ann-t%s' % self.span.markup_type())
         # TODO: this will produce redundant class combinations in
         # cases (e.g. "continueleft openleft")
         if self.cont_left:
@@ -273,11 +295,11 @@ def generate_css(max_height, color_map, legend):
   padding-bottom: %dpx;
   %s
 }""" % (i, i*VSPACE, i*VSPACE, line_height_css(i)))
-    for t,c in color_map.items():
+    for t, c in color_map.items():
         css.append(""".ann-t%s {
   background-color: %s;
   border-color: %s;
-}""" % (t, c, darker_color(c)))
+}""" % (html_safe_string(t), c, darker_color(c)))
     return '\n'.join(css)
 
 def uniq(s):
@@ -289,30 +311,88 @@ def uniq(s):
 def generate_legend(types, colors):
     parts = ['''<div class="legend">Legend<table>''']
     for f, c in zip(types, colors):
-        t = css_class_string(f)
+        t = html_safe_string(f)
         tagl, tagr = '<%s class="ann ann-t%s">' % (TAG, t), '</%s>' % TAG
         parts.append('<tr><td>%s%s%s</td></tr>' % (tagl, f, tagr))
     parts.append('</table></div>')
     return ''.join(parts)
 
+# Mapping from known ontology ID prefixes to coarse human-readable types.
+# (These are mostly CRAFT strings at the moment.)
+prefix_to_coarse_type = {
+    'http://purl.obolibrary.org/obo/GO_': 'Gene Ontology',
+    'http://purl.obolibrary.org/obo/SO_': 'Sequence Ontology',
+    'http://purl.obolibrary.org/obo/PR_': 'Protein Ontology',
+    'http://www.ncbi.nlm.nih.gov/gene/': 'NCBI Gene',
+    'http://purl.obolibrary.org/obo/CHEBI_': 'ChEBI',
+    'http://purl.obolibrary.org/obo/NCBITaxon_': 'NCBI Taxon',
+    'http://purl.obolibrary.org/obo/CL_': 'Cell Ontology',
+    'http://purl.obolibrary.org/obo/BFO_': 'Basic Formal Ontology',
+    'http://purl.obolibrary.org/obo/NCBITaxon_taxonomic_rank': 'Rank',
+    'http://purl.obolibrary.org/obo/NCBITaxon_species': 'Species',
+    'http://purl.obolibrary.org/obo/NCBITaxon_subspecies': 'Subspecies',
+    'http://purl.obolibrary.org/obo/NCBITaxon_phylum': 'Phylym',
+    'http://purl.obolibrary.org/obo/NCBITaxon_kingdom': 'Kingdom',
+    'http://purl.obolibrary.org/obo/IAO_0000314': 'section',
+}
+
+def coarse_type(type_):
+    """Return short, coarse, human-readable type for given type.
+
+    For example, for "http://purl.obolibrary.org/obo/SO_0000704 return
+    e.g. "Sequence Ontology".
+    """
+    # TODO: consider caching
+
+    # Known mappings
+    for prefix, value in prefix_to_coarse_type.iteritems():
+        if type_.startswith(prefix):
+            return value
+
+    # Not known, apply heuristics. TODO: these are pretty crude and
+    # probably won't generalize well. Implement more general approach.
+
+    # start: body e.g. http://purl.obolibrary.org/obo/BFO_000000
+    try:
+        parsed = urlparse.urlparse(body)
+        type_str = parsed.path
+    except Exception, e:
+        type_str = body
+    parts = type_str.strip('/').split('/')
+
+    # split path: parts e.g. ['obo', 'SO_0000704'] or ['gene', '15139']
+    if len(parts) > 1 and parts[-2] == 'obo':
+        return parts[-1].split('_')[0]
+    elif parts[0] == 'gene':
+        return parts[0]
+    return type_str.split('/')[-1]
+
 def _standoff_to_html(text, standoffs, legend, tooltips):
     """standoff_to_html() implementation, don't invoke directly."""
 
-    # Convert standoffs to spans and generate mapping from types to
-    # colors. As type strings will be used as part of CSS class names,
-    # normalize at this point.
-    spans = [Span(so.start, so.end, css_class_string(so.type)) 
-             for so in standoffs]
+    # Convert standoffs to Spans objects.
+    spans = [Span(so.start, so.end, so.type) for so in standoffs]
 
+    # Generate mapping from detailed to coarse types. Coarse types
+    # group detailed types for purposes of assigning display colors
+    # etc.
     types = uniq(s.type for s in spans if not s.formatting)
-    colors = span_colors(types)
-    color_map = dict(zip(types, colors))
+    type_to_coarse = { t: coarse_type(t) for t in types }
+    coarse_types = uniq(type_to_coarse.values())
+
+    # Pick a color for each coarse type.
+    types = uniq(s.type for s in spans if not s.formatting)
+    colors = span_colors(coarse_types)
+    color_map = dict(zip(coarse_types, colors))
 
     # generate legend if requested
-    full_forms = uniq(so.type for so in standoffs)
-    type_to_full_form = { css_class_string(f) : f for f in full_forms }
-    legend_types = [ type_to_full_form[t] for t in types ]
-    legend_html = generate_legend(legend_types, colors) if legend else ''
+    if not legend:
+        legend_html = ''
+    else:
+#         full_forms = uniq(so.type for so in standoffs)
+#         type_to_full_form = { html_safe_string(f) : f for f in full_forms }
+#         legend_types = [ type_to_full_form[t] for t in types ]
+        legend_html = generate_legend(coarse_types, colors)
 
     # resolve height of each span by determining span nesting
     max_height = resolve_heights(spans)
@@ -493,10 +573,11 @@ def span_colors(types):
             i += 1
     return colors
 
-def css_class_string(s, encoding='utf-8'):
+def html_safe_string(s, encoding='utf-8'):
     """Given a non-empty string, return a variant that can be used as
-    a CSS class name."""
+    a label in HTML markup (tag, CSS class name, etc)."""
 
+    # TODO: consider caching
     if not s or s.isspace():
         raise ValueError
 
@@ -516,7 +597,8 @@ def css_class_string(s, encoding='utf-8'):
     
     # Sanity check from http://stackoverflow.com/a/449000, see also
     # http://www.w3.org/TR/CSS21/grammar.html#scanner
-    assert re.match(r'^-?[_a-zA-Z]+[_a-zA-Z0-9-]*', c), 'Internal error: %s' % s
+    assert re.match(r'^-?[_a-zA-Z]+[_a-zA-Z0-9-]*', c), \
+        'Internal error: failed to normalize "%s"' % s
 
     return c
 

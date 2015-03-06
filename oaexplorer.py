@@ -56,51 +56,6 @@ def filter_by_document(annotations, doc, target_key='target'):
             filtered.append(annotation)
     return filtered
 
-# Mapping from known ontology "body" value prefixes to legend labels.
-# (These are mostly CRAFT strings at the moment.)
-prefix_to_display_string = {
-    'http://purl.obolibrary.org/obo/GO_': 'Gene Ontology',
-    'http://purl.obolibrary.org/obo/SO_': 'Sequence Ontology',
-    'http://purl.obolibrary.org/obo/PR_': 'Protein Ontology',
-    'http://www.ncbi.nlm.nih.gov/gene/': 'NCBI Gene',
-    'http://purl.obolibrary.org/obo/CHEBI_': 'ChEBI',
-    'http://purl.obolibrary.org/obo/NCBITaxon_': 'NCBI Taxon',
-    'http://purl.obolibrary.org/obo/CL_': 'Cell Ontology',
-    'http://purl.obolibrary.org/obo/BFO_': 'Basic Formal Ontology',
-    'http://purl.obolibrary.org/obo/NCBITaxon_taxonomic_rank': 'Rank',
-    'http://purl.obolibrary.org/obo/NCBITaxon_species': 'Species',
-    'http://purl.obolibrary.org/obo/NCBITaxon_subspecies': 'Subspecies',
-    'http://purl.obolibrary.org/obo/NCBITaxon_phylum': 'Phylym',
-    'http://purl.obolibrary.org/obo/NCBITaxon_kingdom': 'Kingdom',
-    'http://purl.obolibrary.org/obo/IAO_0000314': 'section',
-}
-
-def display_type_string(body):
-    """Return a short displayable type string for annotation body."""
-    # Known mappings
-    for prefix, value in prefix_to_display_string.iteritems():
-        if body.startswith(prefix):
-            return value
-
-    # Not known, apply heuristics. TODO: these heuristics are pretty
-    # crude and probably won't generalize well. Implement some more
-    # general strategy of deriving display forms.
-
-    # start: body e.g. http://purl.obolibrary.org/obo/BFO_000000
-    try:
-        parsed = urlparse.urlparse(body)
-        type_str = parsed.path
-    except Exception, e:
-        type_str = body
-    parts = type_str.strip('/').split('/')
-
-    # split path: parts e.g. ['obo', 'SO_0000704'] or ['gene', '15139']
-    if len(parts) > 1 and parts[-2] == 'obo':
-        return parts[-1].split('_')[0]
-    elif parts[0] == 'gene':
-        return parts[0]
-    return type_str.split('/')[-1]
-
 def annotations_to_standoffs(annotations, target_key='target'):
     """Convert OA annotations to (start, end, type) triples."""
     standoffs = []
@@ -109,7 +64,7 @@ def annotations_to_standoffs(annotations, target_key='target'):
         fragment = urlparse.urldefrag(target)[1]
         start_end = fragment.split('=', 1)[1]
         start, end = start_end.split(',')
-        type_ = display_type_string(annotation['body'])
+        type_ = annotation['body']
         standoffs.append(Standoff(int(start), int(end), type_))
     return standoffs
 
