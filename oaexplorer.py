@@ -147,14 +147,6 @@ def root():
 def select_url():
     return flask.render_template('index.html', root=API_ROOT)
 
-@app.route('/css/<path:path>')
-def style(path):
-    return flask.send_from_directory('css', path)
-
-@app.route('/img/<path:path>')
-def image(path):
-    return flask.send_from_directory('img', path)
-
 def main(argv):
     # TODO: don't serve directly
     app.run(host='0.0.0.0', port=7000, debug=False)

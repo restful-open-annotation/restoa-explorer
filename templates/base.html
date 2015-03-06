@@ -2,14 +2,19 @@
 <html>
   <head>
     <title>Open Annotation explorer</title>
-    <link rel="stylesheet" href="css/style.css">
-  </head>
+    <link rel="stylesheet" href="static/css/bootstrap.css">
+    <link rel="stylesheet" href="static/css/bootstrap-theme.css">
+    <link rel="stylesheet" href="static/css/style.css">
+    <link href='http://fonts.googleapis.com/css?family=Montserrat:400,700' rel='stylesheet' type='text/css'>
+   </head>
   <body>
-    <div class="header">
-      <div class="text">RESTful Open Annotation explorer</div>
+    <div class="container">
+      <div class="jumbotron">
+	<h1>RESTful Open Annotation Explorer</h1>
     </div>
-    <div class="content">
-    {% block content %}{% endblock %}
+      <div class="content">
+	{% block content %}{% endblock %}
+      </div>
     </div>
   </body>
 </html>

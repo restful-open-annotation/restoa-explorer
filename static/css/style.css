@@ -1,0 +1,74 @@
+html {
+  background-color: #d7d7d7; 
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #316;
+}
+
+body { 
+  background-color: #fbfbfb;
+  border: 1px solid #ccc;
+  padding: 15px; margin: 15px;
+  min-height: 500px;
+}
+
+.container {
+  width: 850px;
+}
+
+div.content {
+  padding-top: 50px;
+}
+
+img.logo {
+  height: 50px;
+  float: left;
+}
+
+.url-form {
+  max-width: 500px;
+  padding: 15px;
+  margin: 0px auto;
+}
+
+.inline-input {
+  display:inline;
+  max-width:75%;
+}
+
+.inline-button {
+  vertical-align:top;
+}
+
+.btn-primary {
+    background-image: linear-gradient(to bottom, #7A33B7 0%, #5A2688 100%);
+    border-color: #552480;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #5a2688;
+}
+.btn-primary:active,
+.btn-primary.active {
+  background-color: #5a2688;
+  border-color: #552480;
+}
+
+.jumbotron {
+  border: 2px solid #316;
+  background-color: inherit;
+  padding: 15px;
+  margin-bottom: 30px;
+}
+.jumbotron h1,
+.jumbotron .h1 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: bold;
+  color: #316;
+  text-align: center;
+}
+@media screen and (min-width: 768px) {
+  .jumbotron h1,
+  .jumbotron .h1 {
+    font-size: 36px;
+  }
+}

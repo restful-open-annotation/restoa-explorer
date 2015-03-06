@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div>
+<h2>Annotations by document</h2>
 <ul>
 {% for doc in documents %}
 <li><a href="{{ doc.href }}">{{ doc.title }}</a>: {{ doc.count }} annotations</li>
