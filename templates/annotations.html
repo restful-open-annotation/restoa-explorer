@@ -19,5 +19,12 @@
 {% else %}
 <b>No annotations found!</b>
 {% endfor %}
+<div>
+{% for link in ['start', 'prev', 'next', 'last'] %}
+{% if link in collection %}
+<a href="{{ collection[link] }}&doc=all&style=list">{{ link }}</a>
+{% endif %}
+{% endfor %}
+</div>
 </div>
 {% endblock %}

@@ -2,7 +2,7 @@
 
 """RESTful Open Annotation explorer.
 
-Open Annotation proxy with server-side visualization.
+Proxy for RESTful Open Annotations with server-side visualization.
 """
 
 __author__ = 'Sampo Pyysalo'
@@ -11,6 +11,7 @@ __license__ = 'MIT'
 import sys
 import json
 import urlparse
+import urllib
 import cgi
 
 import flask
@@ -32,9 +33,17 @@ except ImportError:
 
 API_ROOT = '/explore'
 
-app = flask.Flask(__name__)
+# Key for the list of collection items in RESTful OA collection
+# response.
+ITEMS_KEY = '@graph'
 
 Standoff = namedtuple('MyStandoff', 'start end type')
+
+app = flask.Flask(__name__)
+
+@app.before_request
+def log_request():
+    app.logger.info('%s %s' % (flask.request, flask.request.args))
 
 def pretty(doc):
     return json.dumps(doc, sort_keys=True, indent=2, separators=(',', ': '))
@@ -72,24 +81,28 @@ def annotations_to_standoffs(annotations, target_key='target'):
         standoffs.append(Standoff(int(start), int(end), type_))
     return standoffs
 
+def get_collection(url):
+    """Return annotation collection from RESTful Open Annotation store."""
+    response = requests.get(url)
+    response.raise_for_status()
+    collection = response.json()
+    return collection
+
 def get_annotations(url):
     """Return list of annotations from RESTful Open Annotation store."""
-    if not url.startswith('http://'): # TODO: use urlparse
-        url = 'http://' + url
-    request = requests.get(url)
-    collection = request.json()
-    annotations = collection['@graph']
+    collection = get_collection(url)
+    annotations = collection[ITEMS_KEY]
     return annotations
 
-def get_encoding(request):
-    """Return encoding from the Content-Type of the given request, or None
+def get_encoding(response):
+    """Return encoding from the Content-Type of the given response, or None
     if no encoding is specified."""
     # Based on get_encoding_from_headers in Python Requests utils.py.
     # Note: by contrast to the Python Requests implementation, we do
     # *not* here follow RFC 2616 and fall back to ISO-8859-1 (Latin 1)
     # in the absence of a "charset" parameter for "text" content
     # types, but simply return None.
-    content_type = request.headers.get('Content-Type')
+    content_type = response.headers.get('Content-Type')
     if content_type is None:
         return None
     value, parameters = cgi.parse_header(content_type)
@@ -102,22 +115,36 @@ def get_document_text(url, encoding=None):
 
     Currently assumes that the document is text/plain.
     """
-    request = requests.get(url)
+    response = requests.get(url)
     # Strict RFC 2616 compliance (default to Latin 1 when no "charset"
     # given for text) can lead to misalignment issues when servers
     # fail to specify the encoding. To avoid this, check for missing
     # encodings and fall back on the apparent (charted detected)
     # encoding instead.
     if encoding is not None:
-        request.encoding = encoding
-    elif (get_encoding(request) is None and
-          request.encoding.upper() == 'ISO-8859-1' and
-          request.apparent_encoding != request.encoding):
-        print 'Warning: breaking RFC 2616: ' \
+        response.encoding = encoding
+    elif (get_encoding(response) is None and
+          response.encoding.upper() == 'ISO-8859-1' and
+          response.apparent_encoding != response.encoding):
+        app.logger.warning('Breaking RFC 2616: ' \
             'using detected encoding (%s) instead of default (%s)' % \
-            (request.apparent_encoding, request.encoding)
-        request.encoding = request.apparent_encoding
-    return request.text
+            (response.apparent_encoding, response.encoding))
+        response.encoding = response.apparent_encoding
+    return response.text
+
+def fix_url(url):
+    """Fix potentially incomplete client-provided URL."""
+    # Note: urlparse gives unexpected results when given an
+    # incomplete url with a port and a path but no scheme:
+    # >>> urlparse.urlparse('example.org:80/foo').scheme
+    # 'example.org'
+    # We're avoiding this issue by prepending a default scheme
+    # if there's no obvious one present.
+    def has_scheme(u):
+        return u.startswith('http://') or u.startswith('https://')
+    if not has_scheme(url):
+        url = 'http://' + url
+    return url
 
 @app.route(API_ROOT, methods=['GET', 'POST'])
 @use_args({ 'url': Arg(str),
@@ -130,30 +157,66 @@ def explore(args):
     encoding, style = args['encoding'], args['style']
     if url is None:
         return select_url()
-    elif doc is None:
+    url = fix_url(url)
+    if doc is None:
         return select_doc(url)
     else:
-        return visualize_doc(url, doc, encoding, style)
+        return visualize(url, doc, encoding, style)
 
-def visualize_doc(url, doc, text_encoding=None, style=None):
+def is_relative(url):
+    return urlparse.urlparse(url).netloc == ''
+
+def rewrite_links(collection, base, proxy_url):
+    """Rewrite collection navigation links to go through a proxy.
+
+    Given a representation of a collection resource received from a
+    RESTful Open Annotation server, rewrite all links it contains to
+    go through this proxy.
+    """
+    # TODO: use @context instead of this ad-hoc list to decide
+    # which values are URIs.
+    uri_keys = set(['next', 'prev', 'start', 'last'])
+    new_collection = {}
+    for key, value in collection.iteritems():
+        if key in uri_keys:
+            if is_relative(value):
+                value = urlparse.urljoin(base, value)
+            value = proxy_url + urllib.quote(value)
+        new_collection[key] = value
+    # TODO: recurse
+    return new_collection
+
+def visualize(url, doc, text_encoding=None, style=None):
     if style is None:
         style = 'visualize'
+
     # We're stateless with no DB, so we need to get the annotations again
-    annotations = get_annotations(url)
-    doc_text = get_document_text(doc, text_encoding)
-    filtered = filter_by_document(annotations, doc)
-    if style == 'list':
-        printed = { a['@id']: pretty({ k: v for k, v in a.items()
-                                       if k != '@id' })
-                    for a in annotations }
-        return flask.render_template('annotations.html', annotations=filtered)
+    collection = get_collection(url)
+    proxy_root = flask.request.base_url + '?url='
+    collection = rewrite_links(collection, url, proxy_root)
+    annotations = collection[ITEMS_KEY]
+
+    if doc == 'all': # TODO: avoid magic string
+        filtered = annotations
+        doc_text = None
     else:
+        filtered = filter_by_document(annotations, doc)
+        doc_text = get_document_text(doc, text_encoding)
+
+    if style == 'list':
+        return flask.render_template('annotations.html',
+                                     collection=collection,
+                                     annotations=filtered)
+    else:
+        if doc == 'all':
+            return 'Sorry, can only visualize a single document at a time!'
         standoffs = annotations_to_standoffs(filtered)
         return standoff_to_html(doc_text, standoffs,
                                 legend=True, tooltips=True, links=True)
 
 def doc_href(url, doc):
-    return '%s?url=%s&doc=%s' % (API_ROOT, url, doc)
+    return '%s?url=%s&doc=%s' % (API_ROOT, urllib.quote(url),
+                                 urllib.quote(doc))
 
 def select_doc(url):
     annotations = get_annotations(url)
@@ -163,7 +226,9 @@ def select_doc(url):
         'href': doc_href(url, d),
         'count': len(groups[d]),
         } for d in groups ]
-    return flask.render_template('documents.html', documents=doc_data)
+    quoted_url = urllib.quote(url)
+    return flask.render_template('documents.html', url=quoted_url,
+                                 documents=doc_data)
     
 @app.route(API_ROOT + '/<path:url>')
 def explore_url(url):
@@ -182,6 +247,7 @@ def select_url():
 
 def main(argv):
     # TODO: don't serve directly
+    #app.logger.addHandler(log_handler())
     if not DEBUG:
         app.run(host='0.0.0.0', port=7000, debug=False)
     else:

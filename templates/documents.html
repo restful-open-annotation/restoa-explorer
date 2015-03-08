@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
+<h2>All annotations</h2>
+<ul>
+  <li><a href="{{ request.base_url }}?url={{ url }}&doc=all&style=list">List</a></li>
+</ul>
 <h2>Annotations by document</h2>
 {% for doc in documents %}
 <div style="margin: 20px">
