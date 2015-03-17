@@ -37,6 +37,14 @@ API_ROOT = '/explore'
 # response.
 ITEMS_KEY = '@graph'
 
+# Variables made available to all template rendering contexts.
+template_context = {
+    'isinstance': isinstance,
+    'basestring': basestring,
+    'list': list,
+    'dict': dict,
+}
+
 Standoff = namedtuple('MyStandoff', 'start end type')
 
 app = flask.Flask(__name__)
@@ -206,7 +214,8 @@ def visualize(url, doc, text_encoding=None, style=None):
     if style == 'list':
         return flask.render_template('annotations.html',
                                      collection=collection,
-                                     annotations=filtered)
+                                     annotations=filtered,
+                                     **template_context)
     else:
         if doc == 'all':
             return 'Sorry, can only visualize a single document at a time!'
@@ -227,8 +236,10 @@ def select_doc(url):
         'count': len(groups[d]),
         } for d in groups ]
     quoted_url = urllib.quote(url)
-    return flask.render_template('documents.html', url=quoted_url,
-                                 documents=doc_data)
+    return flask.render_template('documents.html',
+                                 url=quoted_url,
+                                 documents=doc_data,
+                                 **template_context)
     
 @app.route(API_ROOT + '/<path:url>')
 def explore_url(url):

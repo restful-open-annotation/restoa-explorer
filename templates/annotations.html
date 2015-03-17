@@ -7,10 +7,28 @@
 {% for key, val in ann.items() %}
 {% if key != '@id' %}
 <li>{{ key }}: 
+{% if isinstance(val, basestring) %}
 {% if val.startswith('http://') %}
   <a href="{{ val }}">{{ val }}</a>
 {% else %}
   {{ val }}
+{% endif %}
+{% elif isinstance(val, list) %}
+{% for v in val %}
+  {% if isinstance(v, basestring) %}
+    {% if v.startswith('http://') %}
+      <a href="{{ v }}">{{ v }}</a>
+    {% else %}
+      {{ v }}
+    {% endif %}
+  {% elif isinstance(v, dict) and '@id' in v %}
+    <a href="{{ v['@id'] }}">{{ v['@id'] }}</a>
+  {% else %}
+    {{ v }}
+  {% endif %}
+{% endfor %}
+{% else %}
+{{ val }}
 {% endif %}
 </li>
 {% endif %}
