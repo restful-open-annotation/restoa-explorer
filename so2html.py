@@ -362,10 +362,10 @@ def coarse_type(type_):
 
     # start: body e.g. http://purl.obolibrary.org/obo/BFO_000000
     try:
-        parsed = urlparse.urlparse(body)
+        parsed = urlparse.urlparse(type_)
         type_str = parsed.path
     except Exception, e:
-        type_str = body
+        type_str = type_
     parts = type_str.strip('/').split('/')
 
     # split path: parts e.g. ['obo', 'SO_0000704'] or ['gene', '15139']
