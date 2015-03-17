@@ -116,7 +116,7 @@ def get_encoding(response):
     value, parameters = cgi.parse_header(content_type)
     if 'charset' not in parameters:
         return None
-    return paramseters['charset'].strip("'\"")
+    return parameters['charset'].strip("'\"")
 
 def get_document_text(url, encoding=None):
     """Return text of document from given URL.
