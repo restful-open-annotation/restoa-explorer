@@ -373,7 +373,7 @@ def coarse_type(type_):
         return parts[-1].split('_')[0]
     elif parts[0] == 'gene':
         return parts[0]
-    return type_str.split('/')[-1]
+    return type_str.strip('/').split('/')[-1]
 
 def _standoff_to_html(text, standoffs, legend, tooltips, links):
     """standoff_to_html() implementation, don't invoke directly."""
@@ -596,7 +596,7 @@ def html_safe_string(s, encoding='utf-8'):
 
     # TODO: consider caching
     if not s or s.isspace():
-        raise ValueError
+        raise ValueError('empty string "%s"' % s)
 
     if isinstance(s, unicode):
         c = s
