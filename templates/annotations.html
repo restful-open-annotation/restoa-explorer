@@ -13,6 +13,8 @@
 {% else %}
   {{ val }}
 {% endif %}
+{% elif isinstance(val, dict) and '@id' in val %}
+  <a href="{{ val['@id'] }}">{{ val['@id'] }}</a>
 {% elif isinstance(val, list) %}
 {% for v in val %}
   {% if isinstance(v, basestring) %}

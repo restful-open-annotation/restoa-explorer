@@ -328,6 +328,7 @@ def generate_legend(types, colors):
 # Mapping from known ontology ID prefixes to coarse human-readable types.
 # (These are mostly CRAFT strings at the moment.)
 prefix_to_coarse_type = {
+    'http://www.ncbi.nlm.nih.gov/taxonomy/': 'taxonomy',
     'http://purl.obolibrary.org/obo/GO_': 'Gene Ontology',
     'http://purl.obolibrary.org/obo/SO_': 'Sequence Ontology',
     'http://purl.obolibrary.org/obo/PR_': 'Protein Ontology',
@@ -336,12 +337,17 @@ prefix_to_coarse_type = {
     'http://purl.obolibrary.org/obo/NCBITaxon_': 'NCBI Taxon',
     'http://purl.obolibrary.org/obo/CL_': 'Cell Ontology',
     'http://purl.obolibrary.org/obo/BFO_': 'Basic Formal Ontology',
+    'http://purl.obolibrary.org/obo/DOID_': 'Disease Ontology',
+    'http://purl.obolibrary.org/obo/BTO_': 'BRENDA Tissue Ontology',
     'http://purl.obolibrary.org/obo/NCBITaxon_taxonomic_rank': 'Rank',
     'http://purl.obolibrary.org/obo/NCBITaxon_species': 'Species',
     'http://purl.obolibrary.org/obo/NCBITaxon_subspecies': 'Subspecies',
     'http://purl.obolibrary.org/obo/NCBITaxon_phylum': 'Phylym',
     'http://purl.obolibrary.org/obo/NCBITaxon_kingdom': 'Kingdom',
     'http://purl.obolibrary.org/obo/IAO_0000314': 'section',
+    # STRING and STITCH DBs
+    'http://string-db.org/interactions/': 'stringdb',
+    'http://stitchdb-db.org/interactions/': 'stitchdb',
 }
 
 def coarse_type(type_):

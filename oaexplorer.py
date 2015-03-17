@@ -213,6 +213,38 @@ def rewrite_links(collection, base, proxy_url):
     # TODO: recurse
     return new_collection
 
+# TODO: generalize
+_prefix_full_form_map = {
+    'BTO': 'http://purl.obolibrary.org/obo/BTO_',
+    'GO': 'http://purl.obolibrary.org/obo/GO_',
+    'DOID': 'http://purl.obolibrary.org/obo/DOID_',
+    'stringdb': 'http://string-db.org/interactions/',
+    'stitchdb': 'http://stitchdb-db.org/interactions/',
+    'taxonomy': 'http://www.ncbi.nlm.nih.gov/taxonomy/',
+}
+
+def expand_url(url):
+    """Expand prefixed URLs to full forms."""
+    for prefix, full_form in _prefix_full_form_map.iteritems():
+        if url.startswith(prefix + ':'):
+            return full_form + url[len(prefix)+1:]
+    return url
+
+def expand_url_prefixes(document):
+    """Expand prefixed URLs in document to full forms."""
+    # TODO: use actual JSON-LD expansion.
+    if isinstance(document, dict):
+        # expand any '@id' value with a known prefix.
+        if '@id' in document:
+            document['@id'] = expand_url(document['@id'])
+        return {
+            k: expand_url_prefixes(v) for k, v in document.iteritems()
+        }
+    elif isinstance(document, list):
+        return [expand_url_prefixes(d) for d in document]
+    else:
+        return document
+
 def visualize(url, doc, text_encoding=None, style=None):
     if style is None:
         style = 'visualize'
@@ -229,6 +261,10 @@ def visualize(url, doc, text_encoding=None, style=None):
     else:
         filtered = filter_by_document(annotations, doc)
         doc_text = get_document_text(doc, text_encoding)
+
+    # Expand compacted (prefixed) forms to full URLs; the standoff
+    # conversion doesn't understand JSON-LD.
+    annotations = expand_url_prefixes(annotations)
 
     if style == 'list':
         return flask.render_template('annotations.html',
