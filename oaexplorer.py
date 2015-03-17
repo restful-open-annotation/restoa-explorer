@@ -77,6 +77,25 @@ def filter_by_document(annotations, doc, target_key='target'):
             filtered.append(annotation)
     return filtered
 
+def _to_standoff_type(value):
+    """Convert OA body value to type for visualization."""
+    if isinstance(value, dict) and '@id' in value:
+        # TODO: don't just discard possible other items in dict
+        return value['@id']
+    else:
+        # TODO: cover other options also
+        return str(value)
+
+def _annotation_bodies(annotation):
+    """Return list of bodies for given OA annotation."""
+    body = annotation['body']
+    if isinstance(body, basestring):
+        return [body]
+    elif isinstance(body, list):
+        return [_to_standoff_type(item) for item in body]
+    else:
+        return [_to_standoff_type(body)]
+
 def annotations_to_standoffs(annotations, target_key='target'):
     """Convert OA annotations to (start, end, type) triples."""
     standoffs = []
@@ -85,8 +104,8 @@ def annotations_to_standoffs(annotations, target_key='target'):
         fragment = urlparse.urldefrag(target)[1]
         start_end = fragment.split('=', 1)[1]
         start, end = start_end.split(',')
-        type_ = annotation['body']
-        standoffs.append(Standoff(int(start), int(end), type_))
+        for body in _annotation_bodies(annotation):
+            standoffs.append(Standoff(int(start), int(end), body))
     return standoffs
 
 def get_collection(url):
