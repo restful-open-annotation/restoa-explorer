@@ -37,6 +37,12 @@ API_ROOT = '/explore'
 # response.
 ITEMS_KEY = '@graph'
 
+# JSON-LD @type values recognized as identifying an OA annotation.
+ANNOTATION_TYPES = [
+    'oa:Annotation',
+    'http://www.w3.org/ns/oa#Annotation',
+]
+
 # Variables made available to all template rendering contexts.
 template_context = {
     'isinstance': isinstance,
@@ -44,6 +50,9 @@ template_context = {
     'list': list,
     'dict': dict,
 }
+
+class FormatError(Exception):
+    pass
 
 Standoff = namedtuple('MyStandoff', 'start end type')
 
@@ -108,12 +117,69 @@ def annotations_to_standoffs(annotations, target_key='target'):
             standoffs.append(Standoff(int(start), int(end), body))
     return standoffs
 
+def join_urls(urls, base):
+    """Joins base URL to relative URLs."""
+    if isinstance(urls, list):
+        return [_join_relative_urls(u) for u in urls]
+    elif isinstance(urls, basestring):
+        if not is_relative(urls):
+            return urls
+        else:
+            return urlparse.urljoin(base, urls)
+    else:
+        raise ValueError('unexpected URLs: %s' % str(urls))
+
+def complete_relative_urls(document, base):
+    """Complete relative URLs in JSON-LD document with given base URL."""
+    # TODO: use JSON-LD expansion
+    url_keys = ('@id', 'target')
+    if isinstance(document, list):
+        return [complete_relative_urls(d, base) for d in document]
+    elif not isinstance(document, dict):
+        return document # assume primitive
+    else:
+        for key, value in document.items():
+            if key in url_keys:
+                document[key] = join_urls(value, base)
+            else:
+                document[key] = complete_relative_urls(value, base)
+        return document
+
+def is_collection(document):
+    """Return True if JSON-LD document is a collection, False otherwise."""
+    # TODO: decide on and fix '@type'
+    return ITEMS_KEY in document
+
+def is_annotation(document):
+    """Return True if JSON-LD document is an annotation, False otherwise."""
+    # TODO: resolve by expanding JSON-LD
+    if '@type' not in document:
+        return False
+    # Allow for more than one type
+    if isinstance(document['@type'], list):
+        types = document['@type']
+    else:
+        types = [document['@type']]
+    return any(t for t in ANNOTATION_TYPES if t in types)
+
+def annotation_to_collection(document):
+    """Wrap given annotation with a collection containing it."""
+    return { ITEMS_KEY: [document] }
+
 def get_collection(url):
     """Return annotation collection from RESTful Open Annotation store."""
     response = requests.get(url)
     response.raise_for_status()
-    collection = response.json()
-    return collection
+    document = response.json()
+    # Parts of the following processing assume absolute URLs
+    document = complete_relative_urls(document, url)
+    if is_collection(document):
+        return document
+    elif is_annotation(document):
+        return annotation_to_collection(document)
+    else:
+        raise FormatError('Not recognized as collection or annotation:\n %s' %
+                          json.dumps(document, indent=2))
 
 def get_annotations(url):
     """Return list of annotations from RESTful Open Annotation store."""
