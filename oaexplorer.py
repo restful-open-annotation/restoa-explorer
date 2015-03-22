@@ -209,6 +209,7 @@ def get_document_text(url, encoding=None):
     Currently assumes that the document is text/plain.
     """
     response = requests.get(url)
+    response.raise_for_status()
     # Strict RFC 2616 compliance (default to Latin 1 when no "charset"
     # given for text) can lead to misalignment issues when servers
     # fail to specify the encoding. To avoid this, check for missing
