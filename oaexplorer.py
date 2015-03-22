@@ -70,9 +70,12 @@ def group_by_document(annotations, target_key='target'):
     documents as keys and lists of their annotations as values."""
     groups = defaultdict(list)
     for annotation in annotations:
-        target = annotation[target_key]
-        document = urlparse.urldefrag(target)[0]
-        groups[document].append(annotation)
+        targets = annotation[target_key]
+        if isinstance(targets, basestring):
+            targets = [targets]
+        for target in targets:
+            document = urlparse.urldefrag(target)[0]
+            groups[document].append(annotation)
     return groups    
 
 def filter_by_document(annotations, doc, target_key='target'):
@@ -120,7 +123,7 @@ def annotations_to_standoffs(annotations, target_key='target'):
 def join_urls(urls, base):
     """Joins base URL to relative URLs."""
     if isinstance(urls, list):
-        return [_join_relative_urls(u) for u in urls]
+        return [join_urls(u, base) for u in urls]
     elif isinstance(urls, basestring):
         if not is_relative(urls):
             return urls
