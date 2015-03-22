@@ -211,8 +211,13 @@ def get_document_text(url, encoding=None):
 
     Currently assumes that the document is text/plain.
     """
-    response = requests.get(url)
+    headers = { 'Accept': 'text/plain' }
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
+    # check that we got what we wanted
+    mimetype = response.headers.get('Content-Type')
+    if not 'text/plain' in mimetype:
+        raise ValueError('requested text/plain, got %s' % mimetype)
     # Strict RFC 2616 compliance (default to Latin 1 when no "charset"
     # given for text) can lead to misalignment issues when servers
     # fail to specify the encoding. To avoid this, check for missing
