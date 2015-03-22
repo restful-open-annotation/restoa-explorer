@@ -324,10 +324,8 @@ def visualize(url, doc, text_encoding=None, style=None):
 
     if doc == 'all': # TODO: avoid magic string
         filtered = annotations
-        doc_text = None
     else:
         filtered = filter_by_document(annotations, doc)
-        doc_text = get_document_text(doc, text_encoding)
 
     # Expand compacted (prefixed) forms to full URLs; the standoff
     # conversion doesn't understand JSON-LD.
@@ -342,6 +340,7 @@ def visualize(url, doc, text_encoding=None, style=None):
         if doc == 'all':
             return 'Sorry, can only visualize a single document at a time!'
         standoffs = annotations_to_standoffs(filtered)
+        doc_text = get_document_text(doc, text_encoding)
         return standoff_to_html(doc_text, standoffs,
                                 legend=True, tooltips=True, links=True)
 
