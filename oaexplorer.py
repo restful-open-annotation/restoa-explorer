@@ -227,13 +227,14 @@ def get_document_text(url, encoding=None):
     return response.text
 
 def fix_url(url):
-    """Fix potentially incomplete client-provided URL."""
+    """Fix potentially broken or incomplete client-provided URL."""
     # Note: urlparse gives unexpected results when given an
     # incomplete url with a port and a path but no scheme:
     # >>> urlparse.urlparse('example.org:80/foo').scheme
     # 'example.org'
     # We're avoiding this issue by prepending a default scheme
     # if there's no obvious one present.
+    url = url.strip()
     def has_scheme(u):
         return u.startswith('http://') or u.startswith('https://')
     if not has_scheme(url):
