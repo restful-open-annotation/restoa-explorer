@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container">
+  {% if warning %}
+  <div class="alert alert-warning text-center">{{ warning }}</div>
+  {% endif %}
   <form class="url-form" action="{{ root }}" method="get">
     <div>
     <input name="url" type="text" class="form-control inline-input"

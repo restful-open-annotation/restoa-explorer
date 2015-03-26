@@ -173,7 +173,10 @@ def get_collection(url):
     """Return annotation collection from RESTful Open Annotation store."""
     response = requests.get(url)
     response.raise_for_status()
-    document = response.json()
+    try:
+        document = response.json()
+    except Exception, e:
+        raise FormatError('failed to parse JSON')
     # Parts of the following processing assume absolute URLs
     document = complete_relative_urls(document, url)
     if is_collection(document):
@@ -249,6 +252,14 @@ def fix_url(url):
         url = 'http://' + url
     return url
 
+def explore_url(url):
+    try:
+        return select_doc(url)
+    except FormatError, e:
+        return select_url(warning='Error exploring %s: %s' % (url, str(e)))
+    except Exception, e:
+        return select_url(warning='Error exploring %s' % url)
+
 @app.route(API_ROOT, methods=['GET', 'POST'])
 @use_args({ 'url': Arg(str),
             'doc': Arg(str),
@@ -262,9 +273,9 @@ def explore(args):
         return select_url()
     url = fix_url(url)
     if doc is None:
-        return select_doc(url)
+        return explore_url(url)
     else:
-        return visualize(url, doc, encoding, style)
+        return safe_visualize(url, doc, encoding, style)
 
 def is_relative(url):
     return urlparse.urlparse(url).netloc == ''
@@ -321,6 +332,15 @@ def expand_url_prefixes(document):
     else:
         return document
 
+def safe_visualize(url, doc, encoding=None, style=None):
+    # Wrapper for visualize, returns appropriate error messages on Exception.
+    try:
+        return visualize(url, doc, encoding, style)
+    except FormatError, e:
+        return select_url(warning='Error exploring %s: %s' % (url, str(e)))
+    except Exception, e:
+        return select_url(warning='Cannot explore %s / %s: %s' % (url, doc))
+
 def visualize(url, doc, text_encoding=None, style=None):
     if style is None:
         style = 'visualize'
@@ -372,7 +392,7 @@ def select_doc(url):
                                  **template_context)
     
 @app.route(API_ROOT + '/<path:url>')
-def explore_url(url):
+def explore_path(url):
     return explore({'url': url})
 
 @app.route(API_ROOT, methods=['POST'])
@@ -383,8 +403,8 @@ def view_form_url():
 def root():
     return flask.redirect(API_ROOT)
 
-def select_url():
-    return flask.render_template('index.html', root=API_ROOT)
+def select_url(**args):
+    return flask.render_template('index.html', root=API_ROOT, **args)
 
 def main(argv):
     # TODO: don't serve directly
