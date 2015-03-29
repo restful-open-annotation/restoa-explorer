@@ -89,17 +89,29 @@ def filter_by_document(annotations, doc, target_key='target'):
             filtered.append(annotation)
     return filtered
 
+# priority order of keys in structured bodies to select as types for
+# visualization.
+_key_priority_as_type = [
+    '@id',
+    # Universal Dependencies coarse POS tag.
+    'ud:cpostag',
+]
+
 def _to_standoff_type(value):
     """Convert OA body value to type for visualization."""
-    if isinstance(value, dict) and '@id' in value:
-        # TODO: don't just discard possible other items in dict
-        return value['@id']
+    if isinstance(value, dict):
+        for key in _key_priority_as_type:
+            if key in value:
+                # TODO: don't just discard possible other items in dict
+                return value[key]
+        # Just pick the first key in default sort order
+        return value[sorted(value.keys())[0]]
     else:
         # TODO: cover other options also
         return str(value)
 
-def _annotation_bodies(annotation):
-    """Return list of bodies for given OA annotation."""
+def _annotation_types(annotation):
+    """Return list of types for given OA annotation."""
     body = annotation['body']
     if isinstance(body, basestring):
         return [body]
@@ -107,6 +119,21 @@ def _annotation_bodies(annotation):
         return [_to_standoff_type(item) for item in body]
     else:
         return [_to_standoff_type(body)]
+
+def select_type_string(body):
+    """Return string representing the type of an annotation body."""
+    if isinstance(body, basestring):
+        # Already a string, use as-is
+        return body
+    elif isinstance(body, list):
+        assert len(body) > 0, 'annotation body cannot be empty list'
+        # Just pick first arbitrarily
+        return select_type_string(body[0])
+    elif isinstance(body, dict):
+        return 'whatever'
+    else:
+        # non-string primitive
+        return str(body)
 
 def annotations_to_standoffs(annotations, target_key='target'):
     """Convert OA annotations to (start, end, type) triples."""
@@ -116,8 +143,8 @@ def annotations_to_standoffs(annotations, target_key='target'):
         fragment = urlparse.urldefrag(target)[1]
         start_end = fragment.split('=', 1)[1]
         start, end = start_end.split(',')
-        for body in _annotation_bodies(annotation):
-            standoffs.append(Standoff(int(start), int(end), body))
+        for type_ in _annotation_types(annotation):
+            standoffs.append(Standoff(int(start), int(end), type_))
     return standoffs
 
 def join_urls(urls, base):
@@ -337,9 +364,12 @@ def safe_visualize(url, doc, encoding=None, style=None):
     try:
         return visualize(url, doc, encoding, style)
     except FormatError, e:
-        return select_url(warning='Error exploring %s: %s' % (url, str(e)))
+        return select_url(warning='Error exploring %s/%s: %s' %
+                          (url, doc, str(e)))
     except Exception, e:
-        return select_url(warning='Cannot explore %s / %s: %s' % (url, doc))
+        # TODO: only show str(e) in DEBUG
+        return select_url(warning='Cannot explore %s/%s: %s' %
+                          (url, doc, str(e)))
 
 def visualize(url, doc, text_encoding=None, style=None):
     if style is None:
@@ -358,7 +388,7 @@ def visualize(url, doc, text_encoding=None, style=None):
 
     # Expand compacted (prefixed) forms to full URLs; the standoff
     # conversion doesn't understand JSON-LD.
-    annotations = expand_url_prefixes(annotations)
+    filtered = expand_url_prefixes(filtered)
 
     if style == 'list':
         return flask.render_template('annotations.html',
