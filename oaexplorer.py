@@ -93,6 +93,7 @@ def filter_by_document(annotations, doc, target_key='target'):
 # visualization.
 _key_priority_as_type = [
     '@id',
+    'label',
     # Universal Dependencies coarse POS tag.
     'ud:cpostag',
 ]
@@ -119,21 +120,6 @@ def _annotation_types(annotation):
         return [_to_standoff_type(item) for item in body]
     else:
         return [_to_standoff_type(body)]
-
-def select_type_string(body):
-    """Return string representing the type of an annotation body."""
-    if isinstance(body, basestring):
-        # Already a string, use as-is
-        return body
-    elif isinstance(body, list):
-        assert len(body) > 0, 'annotation body cannot be empty list'
-        # Just pick first arbitrarily
-        return select_type_string(body[0])
-    elif isinstance(body, dict):
-        return 'whatever'
-    else:
-        # non-string primitive
-        return str(body)
 
 def annotations_to_standoffs(annotations, target_key='target'):
     """Convert OA annotations to (start, end, type) triples."""

@@ -403,7 +403,7 @@ def _add_formatting_spans(spans, text):
 def _standoff_to_html(text, standoffs, legend, tooltips, links):
     """standoff_to_html() implementation, don't invoke directly."""
 
-    # Convert standoffs to Spans objects.
+    # Convert standoffs to Span objects.
     spans = [Span(so.start, so.end, so.type) for so in standoffs]
 
     # Add formatting such as paragraph breaks if none are provided.
