@@ -78,22 +78,28 @@ class Span(object):
 
     def sort_height(self):
         """Relative height of this tag for sorting purposes."""
+        # For the purposes of sorting, count the height of formatting
+        # tags similarly to other tags, adding a very small value,
+        # EPSILON, to give correct sort order.
+        if not self.formatting:
+            return self.height()
+        else:
+            # This +1 compensates for the lack of own height in height()
+            return self.height() + 1 + EPSILON
+
+    def height(self):
+        """Relative height of this tag (except for sorting)."""
         # Formatting tags have effectively zero height, i.e. they
         # should not affect the height of tags that wrap them. TODO:
         # this still leaves a height+1 effect when a formatting tag is
         # the only one nested by a regular one; fix this.
-        # A very small value, EPSILON, is used as the height of
-        # formatting tags to give correct sort order.
-        own_height = 1 if not self.formatting else EPSILON
+        ownh = 1 if not self.formatting else 0
         if self._height is None:
-            self._height = 0 if not self.nested else \
-                max([n.height() for n in self.nested]) + own_height
+            if not self.nested:
+                self._height = 0
+            else:
+                self._height = max([n.height() for n in self.nested]) + ownh
         return self._height
-
-    def height(self):
-        """Relative height of this tag (except for sorting)."""
-        # Simply eliminate the "virtual" EPSILON heights.
-        return int(self.sort_height())
 
 # Span type to HTML tag mapping for formatting spans. Note that these
 # are URIs we came up with and not likely to be adopted by many tools
