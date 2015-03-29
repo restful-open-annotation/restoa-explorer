@@ -691,7 +691,7 @@ body {
   line-height: %dpx
 }
 section {
-  padding: 15px;
+  padding: 5px;
 }
 %s
 /* This is a hack to correct for hint.css making blocks too high. */
