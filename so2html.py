@@ -69,11 +69,6 @@ class Span(object):
             else:
                 return TAG
         else:
-            # TODO: very special case hack put in place to guess at
-            # which CRAFT sections are headings. Remove ASAP.
-            if (type_to_formatting_tag(self.type) == 'section' and
-                self.end - self.start < 100):
-                return 'h2'
             return type_to_formatting_tag(self.type)
 
     def markup_type(self):
@@ -381,11 +376,32 @@ def coarse_type(type_):
         return parts[0]
     return type_str.strip('/').split('/')[-1]
 
+def _add_formatting_spans(spans, text):
+    """Add formatting spans based on text."""
+    # Skip if there are any formatting types in the user-provided data
+    # on the assumption that users able to do formatting will want
+    # full control.
+    if any(s for s in spans if is_formatting_type(s.type)):
+        return spans
+
+    # Add sections based on newlines in the text
+    offset = 0
+    section = 'http://purl.obolibrary.org/obo/IAO_0000314'
+    for s in re.split('(\n)', text):
+        if s and not s.isspace():
+            spans.append(Span(offset, offset+len(s), section, formatting=True))
+        offset += len(s)
+
+    return spans
+
 def _standoff_to_html(text, standoffs, legend, tooltips, links):
     """standoff_to_html() implementation, don't invoke directly."""
 
     # Convert standoffs to Spans objects.
     spans = [Span(so.start, so.end, so.type) for so in standoffs]
+
+    # Add formatting such as paragraph breaks if none are provided.
+    spans = _add_formatting_spans(spans, text)
 
     # Generate mapping from detailed to coarse types. Coarse types
     # group detailed types for purposes of assigning display colors
