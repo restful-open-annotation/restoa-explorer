@@ -400,6 +400,15 @@ def _add_formatting_spans(spans, text):
 
     return spans
 
+def _filter_empty_spans(spans):
+    filtered = []
+    for span in spans:
+        if span.start == span.end:
+            print 'Warning: ignoring empty span'
+        else:
+            filtered.append(span)
+    return filtered
+
 def _standoff_to_html(text, standoffs, legend, tooltips, links):
     """standoff_to_html() implementation, don't invoke directly."""
 
@@ -408,6 +417,9 @@ def _standoff_to_html(text, standoffs, legend, tooltips, links):
 
     # Add formatting such as paragraph breaks if none are provided.
     spans = _add_formatting_spans(spans, text)
+
+    # Filter out empty spans (not currently supported)
+    spans = _filter_empty_spans(spans)
 
     # Generate mapping from detailed to coarse types. Coarse types
     # group detailed types for purposes of assigning display colors
@@ -618,6 +630,12 @@ def span_colors(types):
             i += 1
     return colors
 
+# exceptions for html_safe_string
+_html_safe_map = {
+    '(': u'LEFT-PAREN',
+    ')': u'RIGHT-PAREN',
+}
+
 def html_safe_string(s, encoding='utf-8'):
     """Given a non-empty string, return a variant that can be used as
     a label in HTML markup (tag, CSS class name, etc)."""
@@ -631,6 +649,9 @@ def html_safe_string(s, encoding='utf-8'):
     else:
         c = s.decode(encoding)
 
+    # specific exceptions
+    c = _html_safe_map.get(c, c)
+
     # adapted from http://stackoverflow.com/q/5574042
     c = unicodedata.normalize('NFKD', c).encode('ascii', 'ignore')
     c = re.sub(r'[^_a-zA-Z0-9-]', '-', c)
@@ -639,7 +660,10 @@ def html_safe_string(s, encoding='utf-8'):
 
     if c and c[0].isdigit():
         c = '_' + c
-    
+
+    if len(c) == 0:
+        c = 'NON-STRING-TYPE'
+
     # Sanity check from http://stackoverflow.com/a/449000, see also
     # http://www.w3.org/TR/CSS21/grammar.html#scanner
     assert re.match(r'^-?[_a-zA-Z]+[_a-zA-Z0-9-]*', c), \

@@ -113,7 +113,10 @@ def _to_standoff_type(value):
 
 def _annotation_types(annotation):
     """Return list of types for given OA annotation."""
-    body = annotation['body']
+    try:
+        body = annotation['body']
+    except KeyError:
+        return ['<unknown>']
     if isinstance(body, basestring):
         return [body]
     elif isinstance(body, list):
