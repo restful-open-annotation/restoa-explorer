@@ -127,8 +127,12 @@ def annotations_to_standoffs(annotations, target_key='target'):
     for annotation in annotations:
         target = annotation[target_key]
         fragment = urlparse.urldefrag(target)[1]
-        start_end = fragment.split('=', 1)[1]
-        start, end = start_end.split(',')
+        try:
+            start_end = fragment.split('=', 1)[1]
+            start, end = start_end.split(',')
+        except IndexError:
+            app.logger.warning('failed to parse target %s' % target)
+            start, end = 0, 1
         for type_ in _annotation_types(annotation):
             standoffs.append(Standoff(int(start), int(end), type_))
     return standoffs
