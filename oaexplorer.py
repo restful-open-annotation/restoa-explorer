@@ -298,7 +298,11 @@ def explore(args):
         return safe_visualize(url, doc, encoding, style)
 
 def is_relative(url):
-    return urlparse.urlparse(url).netloc == ''
+    # URLs starting with known prefixes are considered absolute
+    if any(p for p in _prefix_full_form_map if url.startswith(p+':')):
+        return False
+    else:
+        return urlparse.urlparse(url).netloc == ''
 
 def rewrite_links(collection, base, proxy_url):
     """Rewrite collection navigation links to go through a proxy.
